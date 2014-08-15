@@ -1,7 +1,7 @@
 CXX ?= g++
 CC ?= gcc
-CFLAGS = -Wall -Wconversion -O3 -fPIC
-LIBS = blas/blas.a
+CFLAGS = -Wall -Wconversion -O3 -fPIC -I ~/NVIDIA_CUDA-5.5_Samples/NVIDIA_CUDA-5.5_Samples/common/inc -I /usr/local/cuda/include/ -D GPU
+LIBS = blas/blas.a -lcublas  -lcudart -L/usr/local/cuda/lib64
 SHVER = 1
 OS = $(shell uname)
 #LIBS = -lblas

@@ -1,3 +1,14 @@
+// TODO(mmoghimi): The following block is not necessary. 
+// Just helps with the compilation errors.
+#ifdef GPU 
+#include <cuda_runtime.h>
+#include <cublas_v2.h>
+#include <helper_cuda.h>
+#include <iostream>
+#include <assert.h>
+cublasHandle_t handle;
+#endif // GPU
+
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>

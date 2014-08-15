@@ -1,4 +1,14 @@
+#ifdef GPU
+#include <cuda_runtime.h>
+#include <cublas_v2.h>
+#include <helper_cuda.h>
+#include <iostream>
+#include <assert.h>
+cublasHandle_t handle;
+#endif // GPU
+
 #include <stdio.h>
+#include <time.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,12 +105,28 @@ double bias;
 
 int main(int argc, char **argv)
 {
+#ifdef GPU
+    int dev = findCudaDevice(argc, (const char **) argv);
+    if (dev == -1)
+        return 0;
+
+    if (cublasCreate(&handle) != CUBLAS_STATUS_SUCCESS)
+    {
+        fprintf(stdout, "CUBLAS initialization failed!\n");
+        cudaDeviceReset();
+        exit(EXIT_FAILURE);
+    }
+#endif // GPU
+
 	char input_file_name[1024];
 	char model_file_name[1024];
 	const char *error_msg;
 
 	parse_command_line(argc, argv, input_file_name, model_file_name);
+  time_t t1 = clock();
 	read_problem(input_file_name);
+  time_t t2 = clock();
+  printf("reading the input file took %f seconds.\n", float(t2-t1)/CLOCKS_PER_SEC);
 	error_msg = check_parameter(&prob,&param);
 
 	if(error_msg)
@@ -128,6 +154,13 @@ int main(int argc, char **argv)
 	free(prob.x);
 	free(x_space);
 	free(line);
+
+
+#ifdef GPU
+    cublasDestroy(handle);
+    cudaDeviceReset();
+#endif // GPU
+  printf("reading the input file took %f seconds.\n", float(t2-t1)/CLOCKS_PER_SEC);
 
 	return 0;
 }

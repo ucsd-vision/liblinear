@@ -1,3 +1,12 @@
+#ifdef GPU
+#include <cuda_runtime.h>
+#include <cublas_v2.h>
+#include <helper_cuda.h>
+#include <iostream>
+#include <assert.h>
+extern cublasHandle_t handle;
+#endif // GPU
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,7 +73,19 @@ private:
 	double *z;
 	double *D;
 	const problem *prob;
+
+#ifdef GPU
+	static double *X_dev;
+	static double *v_dev;
+	static double *Xv_dev;
+#endif // GPU
 };
+
+#ifdef GPU
+double* l2r_lr_fun::X_dev = NULL;
+double* l2r_lr_fun::v_dev = NULL;
+double* l2r_lr_fun::Xv_dev = NULL;
+#endif // GPU
 
 l2r_lr_fun::l2r_lr_fun(const problem *prob, double *C)
 {
@@ -75,6 +96,27 @@ l2r_lr_fun::l2r_lr_fun(const problem *prob, double *C)
 	z = new double[l];
 	D = new double[l];
 	this->C = C;
+
+#ifdef GPU
+	if(X_dev == NULL) {
+		printf("Copying (and allocating) the data matrix to GPU...\n");
+		double gb = 1.0*sizeof(double)*prob->n*prob->l/1024/1024/1024;
+		printf("Size of data matrix is %d bytes (i.e. %lf GB)\n", sizeof(double)*prob->n*prob->l, gb);
+
+		double* X = new double [prob->l * prob->n];
+
+		for(int i = 0; i < prob->l; ++i)
+			for(int j = 0; (prob->x)[i][j].index >=0; ++j)
+				X[i + ((prob->x)[i][j].index-1) * prob->l] = (prob->x)[i][j].value; 
+
+		assert(cudaMalloc((void **)&X_dev, prob->n*prob->l * sizeof(X_dev[0])) == cudaSuccess);
+		assert(cudaMalloc((void **)&v_dev, max(prob->n, prob->l) * sizeof(v_dev[0])) == cudaSuccess);
+		assert(cudaMalloc((void **)&Xv_dev, max(prob->n, prob->l) * sizeof(Xv_dev[0])) == cudaSuccess);
+
+	    assert(cublasSetVector(prob->n*prob->l, sizeof(X_dev[0]), X, 1, X_dev, 1) == CUBLAS_STATUS_SUCCESS);
+		printf("GPU allocation and data transfer finished.\n");
+	}
+#endif // GPU
 }
 
 l2r_lr_fun::~l2r_lr_fun()
@@ -150,6 +192,23 @@ void l2r_lr_fun::Hv(double *s, double *Hs)
 	delete[] wa;
 }
 
+#ifdef GPU
+void l2r_lr_fun::Xv(double *v, double *Xv)
+{
+	int l = prob->l;
+	int n = prob->n;
+	int lda = l;
+	int inc = 1;
+	double beta = 0.0f;
+	double alpha = 1.0f;
+
+    assert(cublasSetVector(n, sizeof(v_dev[0]), v, 1, v_dev, 1) == CUBLAS_STATUS_SUCCESS);
+	assert(cublasDgemv(handle, CUBLAS_OP_N, l, n, &alpha, X_dev, lda, v_dev, inc, &beta, Xv_dev, inc) == CUBLAS_STATUS_SUCCESS);
+    assert(cublasGetVector(l, sizeof(Xv[0]), Xv_dev, 1, Xv, 1) == CUBLAS_STATUS_SUCCESS);
+}
+
+#else
+
 void l2r_lr_fun::Xv(double *v, double *Xv)
 {
 	int i;
@@ -167,6 +226,26 @@ void l2r_lr_fun::Xv(double *v, double *Xv)
 		}
 	}
 }
+#endif // GPU
+
+#ifdef GPU
+
+void l2r_lr_fun::XTv(double *v, double *XTv)
+{
+	int l=prob->l;
+	int n=prob->n;
+
+	int lda = l;
+	int inc = 1;
+	double beta = 0.0f;
+	double alpha = 1.0f;
+
+    assert(cublasSetVector(l, sizeof(v_dev[0]), v, 1, v_dev, 1) == CUBLAS_STATUS_SUCCESS);
+	assert(cublasDgemv(handle, CUBLAS_OP_T, l, n, &alpha, X_dev, lda, v_dev, inc, &beta, Xv_dev, inc) == CUBLAS_STATUS_SUCCESS);
+    assert(cublasGetVector(n, sizeof(XTv[0]), Xv_dev, 1, XTv, 1) == CUBLAS_STATUS_SUCCESS);
+}
+
+#else
 
 void l2r_lr_fun::XTv(double *v, double *XTv)
 {
@@ -187,6 +266,7 @@ void l2r_lr_fun::XTv(double *v, double *XTv)
 		}
 	}
 }
+#endif // GPU
 
 class l2r_l2_svc_fun: public function
 {
