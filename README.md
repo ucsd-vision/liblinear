@@ -86,4 +86,4 @@ The following table shows the comparison between liblinear and liblinear\_gpu. l
 
 Test datasets are available at http://vision.ucsd.edu/~mohammad/liblinear_gpu/
 
-Contact: mohammad at_sign ucsd dot edu
+Contact: mmoghimi at_sign cs dot cornell dot edu
