@@ -84,6 +84,6 @@ The following table shows the comparison between liblinear and liblinear\_gpu. l
  </tr>
 </table>
 
-Test datasets are available at http://vision.caltech.edu/~mmoghimi/liblinear_gpu/
+Test datasets are available at http://vision.cornell.edu/~mmoghimi/liblinear_gpu/
 
 Contact: mmoghimi at_sign cs dot cornell dot edu
